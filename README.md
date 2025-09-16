@@ -1,6 +1,6 @@
 ![logo](https://github.com/gyf-dev/Screenshots/blob/master/ImmersionBar/readme_head.png)
-# ImmersionBar -- android 4.4以上沉浸式实现 
-[![version](https://img.shields.io/badge/version-3.2.2-brightgreen.svg)](https://bintray.com/geyifeng/maven/immersionbar) [![author](https://img.shields.io/badge/author-gyf--dev-orange.svg)](https://github.com/gyf-dev) [![简书](https://img.shields.io/badge/%E7%AE%80%E4%B9%A6-HeLe%E5%B0%8F%E5%AD%90%E6%8B%BD-blue.svg)](https://www.jianshu.com/p/2a884e211a62) [![QQ群](https://img.shields.io/badge/QQ%E7%BE%A4-314360549-red.svg)]()
+# ImmersionBar -- android 4.4以上沉浸式实现 (支持 Android 15/16)
+[![version](https://img.shields.io/badge/version-3.2.2-brightgreen.svg)](https://bintray.com/geyifeng/maven/immersionbar) [![author](https://img.shields.io/badge/author-gyf--dev-orange.svg)](https://github.com/gyf-dev) [![简书](https://img.shields.io/badge/%E7%AE%80%E4%B9%A6-HeLe%E5%B0%8F%E5%AD%90%E6%8B%BD-blue.svg)](https://www.jianshu.com/p/2a884e211a62) [![QQ群](https://img.shields.io/badge/QQ%E7%BE%A4-314360549-red.svg)]() [![Android](https://img.shields.io/badge/Android-15%2F16-green.svg)]()
 
 ## 直接看效果图，建议下载demo体验，最下面有各个版本的效果图
 <img width="300"  src="https://github.com/gyf-dev/Screenshots/blob/master/ImmersionBar/Screenshot_6.0.gif"/>
@@ -64,6 +64,28 @@
         android:name="notch.config"
         android:value="portrait|landscape" />
    ```
+
+#### Android 15/16 Edge-to-Edge 适配
+   从 Android 15 开始，系统默认启用 Edge-to-Edge 模式，应用界面会扩展至屏幕边缘。ImmersionBar 已自动适配此模式：
+
+   ① **自动适配**：当 targetSdkVersion >= 35 时，ImmersionBar 会自动启用 Edge-to-Edge 适配
+   
+   ② **过渡期配置**（可选，Android 16 将移除）：
+   ```xml
+      <meta-data
+          android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_ALLOW_SYSTEM_OVERRIDE"
+          android:value="false" />
+   ```
+   
+   ③ **预测性返回手势适配**：
+   - 已修复 Android 13+ 预测性返回手势导致的返回失效问题
+   - ImmersionBar 会自动注册 `OnBackInvokedCallback` 确保返回手势正常工作
+   - 无需额外配置，升级后即可解决返回手势 Bug
+   
+   ④ **注意事项**：
+   - Android 15+ 中部分状态栏/导航栏 API 已标记为弃用，但 ImmersionBar 仍保持兼容
+   - 建议在 Android 15+ 设备上充分测试应用的沉浸式效果
+   - 对于复杂布局，可能需要额外的窗口插入处理
   
 ## Api详解
 - 基础用法

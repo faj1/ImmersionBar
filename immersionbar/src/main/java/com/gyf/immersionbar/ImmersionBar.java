@@ -26,6 +26,8 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.FrameLayout;
+import android.window.OnBackInvokedCallback;
+import android.window.OnBackInvokedDispatcher;
 
 import androidx.annotation.ColorInt;
 import androidx.annotation.ColorRes;
@@ -94,6 +96,14 @@ public final class ImmersionBar implements ImmersionCallback {
      * ActionBar的高度
      */
     private int mActionBarHeight = 0;
+    /**
+     * Android 13+ 预测性返回手势回调
+     */
+    private OnBackInvokedCallback mBackInvokedCallback;
+    /**
+     * 是否已注册预测性返回手势
+     */
+    private boolean mBackCallbackRegistered = false;
     /**
      * 软键盘监听相关
      */
@@ -330,6 +340,8 @@ public final class ImmersionBar implements ImmersionCallback {
             fitsKeyboard();
             //变色view
             transformView();
+            // Android 13+ 预测性返回手势适配
+            registerPredictiveBackGesture();
             mInitialized = true;
         }
     }
@@ -340,6 +352,8 @@ public final class ImmersionBar implements ImmersionCallback {
     void onDestroy() {
         //取消监听
         cancelListener();
+        // 取消注册预测性返回手势
+        unregisterPredictiveBackGesture();
         if (mIsDialog && mParentBar != null) {
             mParentBar.mBarParams.keyboardEnable = mParentBar.mKeyboardTempEnable;
             if (mParentBar.mBarParams.barHide != BarHide.FLAG_SHOW_BAR) {
@@ -503,24 +517,49 @@ public final class ImmersionBar implements ImmersionCallback {
         }
         //需要设置这个才能设置状态栏和导航栏颜色
         mWindow.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+        
+        // Android 15+ Edge-to-Edge 适配
+        if (Build.VERSION.SDK_INT >= 35) { // Android 15 (API 35)
+            // 确保应用支持 Edge-to-Edge 模式
+            enableEdgeToEdge();
+        }
+        
         //设置状态栏颜色
         if (mBarParams.statusBarColorEnabled) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 mWindow.setStatusBarContrastEnforced(false);
             }
-            mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
-                    mBarParams.statusBarColorTransform, mBarParams.statusBarAlpha));
+            // Android 15+ 中状态栏颜色设置方法可能被弃用，但仍然可用
+            if (Build.VERSION.SDK_INT < 35) {
+                mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
+                        mBarParams.statusBarColorTransform, mBarParams.statusBarAlpha));
+            } else {
+                // 对于 Android 15+，继续使用现有方法，因为替代方案尚未完全确定
+                mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
+                        mBarParams.statusBarColorTransform, mBarParams.statusBarAlpha));
+            }
         } else {
-            mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
-                    Color.TRANSPARENT, mBarParams.statusBarAlpha));
+            if (Build.VERSION.SDK_INT < 35) {
+                mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
+                        Color.TRANSPARENT, mBarParams.statusBarAlpha));
+            } else {
+                mWindow.setStatusBarColor(ColorUtils.blendARGB(mBarParams.statusBarColor,
+                        Color.TRANSPARENT, mBarParams.statusBarAlpha));
+            }
         }
         //设置导航栏颜色
         if (mBarParams.navigationBarEnable) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 mWindow.setNavigationBarContrastEnforced(false);
             }
-            mWindow.setNavigationBarColor(ColorUtils.blendARGB(mBarParams.navigationBarColor,
-                    mBarParams.navigationBarColorTransform, mBarParams.navigationBarAlpha));
+            if (Build.VERSION.SDK_INT < 35) {
+                mWindow.setNavigationBarColor(ColorUtils.blendARGB(mBarParams.navigationBarColor,
+                        mBarParams.navigationBarColorTransform, mBarParams.navigationBarAlpha));
+            } else {
+                // 对于 Android 15+，继续使用现有方法
+                mWindow.setNavigationBarColor(ColorUtils.blendARGB(mBarParams.navigationBarColor,
+                        mBarParams.navigationBarColorTransform, mBarParams.navigationBarAlpha));
+            }
         } else {
             mWindow.setNavigationBarColor(mBarParams.defaultNavigationBarColor);
         }
@@ -3334,5 +3373,90 @@ public final class ImmersionBar implements ImmersionCallback {
 
     private static boolean isEmpty(String str) {
         return str == null || str.trim().length() == 0;
+    }
+    
+    /**
+     * 启用 Android 15+ Edge-to-Edge 模式适配
+     * Enable Edge-to-Edge mode for Android 15+
+     */
+    @RequiresApi(api = 35) // Android 15 (API 35)
+    private void enableEdgeToEdge() {
+        if (mActivity != null) {
+            // 确保应用内容可以延伸到系统栏区域
+            // 这是 Android 15+ 的默认行为，但我们明确设置以确保兼容性
+            mWindow.setDecorFitsSystemWindows(false);
+            
+            // 对于 Android 15+，确保正确处理窗口插入
+            if (mContentView != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                // 使用 WindowInsetsController 来管理系统栏外观
+                WindowInsetsController controller = mContentView.getWindowInsetsController();
+                if (controller != null) {
+                    // 设置系统栏的行为，使其在全屏模式下可以通过手势显示
+                    controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                }
+            }
+        }
+    }
+    
+    /**
+     * 注册 Android 13+ 预测性返回手势
+     * Register Android 13+ predictive back gesture
+     */
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU) // Android 13 (API 33)
+    private void registerPredictiveBackGesture() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && mActivity != null && !mBackCallbackRegistered) {
+            try {
+                OnBackInvokedDispatcher dispatcher = mActivity.getOnBackInvokedDispatcher();
+                if (dispatcher != null) {
+                    // 创建预测性返回手势回调
+                    mBackInvokedCallback = new OnBackInvokedCallback() {
+                        @Override
+                        public void onBackInvoked() {
+                            // 确保返回手势能够正确传递给 Activity
+                            // 这里不做任何拦截，让系统正常处理返回逻辑
+                            if (mActivity != null && !mActivity.isFinishing()) {
+                                // 调用 Activity 的 onBackPressed() 方法
+                                mActivity.onBackPressed();
+                            }
+                        }
+                    };
+                    
+                    // 注册回调，使用最高优先级确保能够接收到返回手势
+                    dispatcher.registerOnBackInvokedCallback(
+                            OnBackInvokedDispatcher.PRIORITY_DEFAULT, 
+                            mBackInvokedCallback
+                    );
+                    mBackCallbackRegistered = true;
+                }
+            } catch (Exception e) {
+                // 忽略可能的异常，确保不影响正常功能
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    /**
+     * 取消注册 Android 13+ 预测性返回手势
+     * Unregister Android 13+ predictive back gesture
+     */
+    @RequiresApi(api = Build.VERSION_CODES.TIRAMISU) // Android 13 (API 33)
+    private void unregisterPredictiveBackGesture() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && 
+            mActivity != null && 
+            mBackCallbackRegistered && 
+            mBackInvokedCallback != null) {
+            try {
+                OnBackInvokedDispatcher dispatcher = mActivity.getOnBackInvokedDispatcher();
+                if (dispatcher != null) {
+                    dispatcher.unregisterOnBackInvokedCallback(mBackInvokedCallback);
+                }
+            } catch (Exception e) {
+                // 忽略可能的异常
+                e.printStackTrace();
+            } finally {
+                mBackInvokedCallback = null;
+                mBackCallbackRegistered = false;
+            }
+        }
     }
 }

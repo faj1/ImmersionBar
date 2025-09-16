@@ -30,10 +30,17 @@
             android:value="2.4" /> <!-- 适配华为(hua wei)刘海屏 -->
         <meta-data
             android:name="android.notch_support"
-            android:value="true" /> <!-- 适配小米(xiao mi)刘海屏 -->
+            android:value="true" />         <!-- 适配小米(xiao mi)刘海屏 -->
         <meta-data
             android:name="notch.config"
             android:value="portrait|landscape" />
+        
+        <!-- Android 15+ Edge-to-Edge 适配 -->
+        <!-- 注意：在实际发布时，建议移除此配置以完全适配 Edge-to-Edge 模式 -->
+        <!-- 此配置仅用于过渡期，Android 16 将完全移除此选项 -->
+        <meta-data
+            android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_ALLOW_SYSTEM_OVERRIDE"
+            android:value="false" />
 
         <activity
             android:name="com.gyf.immersionbar.sample.activity.MainActivity"

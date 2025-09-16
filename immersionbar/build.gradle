@@ -1,11 +1,12 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 31
+    namespace 'com.gyf.immersionbar'
+    compileSdkVersion 35
 
     defaultConfig {
         minSdkVersion 14
-        targetSdkVersion 31
+        targetSdkVersion 35
 
         consumerProguardFiles "consumer-rules.pro"
     }
@@ -15,8 +16,13 @@ android {
         // but continue the build even when errors are found:
         abortOnError false
     }
+    
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 }
 
 dependencies {
-    compileOnly 'androidx.appcompat:appcompat:1.4.1'
+    compileOnly 'androidx.appcompat:appcompat:1.6.1'
 }
